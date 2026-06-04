@@ -32,4 +32,20 @@ class AuthError extends AuthState {
   List<Object?> get props => [message];
 }
 
-class PasswordResetSuccess extends AuthState {}
+class PasswordResetState extends AuthState {
+  final String message;
+
+  const PasswordResetState(this.message);
+
+  @override
+  List<Object?> get props => [message];
+}
+
+class PasswordResetSuccess extends AuthState {
+  final String message;
+
+  const PasswordResetSuccess(this.message);
+
+  @override
+  List<Object?> get props => [message];
+}

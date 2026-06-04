@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http_parser/http_parser.dart';
+
 import '../../../../core/network/api_client.dart';
 import '../../domain/entities/school_entity.dart';
 import '../../domain/repositories/school_repository.dart';
@@ -11,16 +14,25 @@ class SchoolRepositoryImpl implements SchoolRepository {
   final ApiClient _apiClient = ApiClient();
 
   @override
-  Future<SchoolEntity?> getSchoolDetails(String schoolId) async {
+  Future<SchoolEntity?> getSchoolDetails() async {
     try {
-      final response = await _apiClient.dio.get('/school/$schoolId');
+      // First try to fetch using the standard microservice route: GET /school/profile
+      // Since the API gateway extracts schoolId from the Authorization token,
+      // the backend fetches the correct profile context automatically.
+      Response response;
+
+      response = await _apiClient.dio.get('/school/getSchoolById');
+      if (response.statusCode == 404) {
+        // Profile does not exist yet
+        return null;
+      }
+
       if (response.data == null) return null;
-      
+
       final Map<String, dynamic> data = response.data as Map<String, dynamic>;
       return SchoolModel.fromJson(data);
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) {
-        // If profile doesn't exist yet, return null
         return null;
       }
       String errorMessage = 'An error occurred fetching school details.';
@@ -39,11 +51,15 @@ class SchoolRepositoryImpl implements SchoolRepository {
   }
 
   @override
-  Future<void> saveSchoolDetails(String schoolId, SchoolEntity school, List<dynamic> newImages) async {
+  Future<void> saveSchoolDetails(
+    String schoolId,
+    SchoolEntity school,
+    List<dynamic> newImages,
+  ) async {
     try {
       final model = SchoolModel.fromEntity(school);
-      
-      // Map newImages files to Dio MultipartFile bytes lists
+
+      // Map picked file items to Dio MultipartFile parts
       final List<MultipartFile> files = [];
       for (var item in newImages) {
         if (item is PlatformFile && item.bytes != null) {
@@ -59,8 +75,8 @@ class SchoolRepositoryImpl implements SchoolRepository {
       }
 
       final formData = FormData();
-      
-      // Add the JSON model as a String part
+
+      // Add the JSON school model as a RequestPart
       formData.files.add(
         MapEntry(
           'school',
@@ -71,19 +87,33 @@ class SchoolRepositoryImpl implements SchoolRepository {
         ),
       );
 
-      // Add actual selected images to form data
+      // Add the picked images list as a RequestPart
       if (files.isNotEmpty) {
         for (var file in files) {
           formData.files.add(MapEntry('images', file));
         }
+      }else{
+        formData.files.add(MapEntry('images',MultipartFile.fromBytes(Uint8List(0),filename: '', contentType: MediaType('application', 'json'),)));
       }
-
+      final response;
       if (school.id != null && school.id!.isNotEmpty) {
         // Send PUT request to update profile
-        await _apiClient.dio.put('/school/$schoolId', data: formData);
+         response = await _apiClient.dio.put(
+          '/school/updateprofile',
+          data: formData,
+          options: Options(responseType: ResponseType.plain),
+        );
       } else {
-        // Send POST request to create profile
-        await _apiClient.dio.post('/school', data: formData);
+        // Send POST request to complete profile
+         response = await _apiClient.dio.post(
+          '/school/profile',
+          data: formData,
+          options: Options(responseType: ResponseType.plain),
+        );
+      }
+      if(response.statusCode != 200){
+        print("Response Data: ${response.data}");
+        throw Exception(response.data);
       }
     } on DioException catch (e) {
       String errorMessage = 'Failed to save school profile details.';

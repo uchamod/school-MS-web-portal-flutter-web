@@ -20,7 +20,7 @@ class SchoolBloc extends Bloc<SchoolEvent, SchoolState> {
   ) async {
     emit(SchoolLoading());
     try {
-      final school = await _schoolRepository.getSchoolDetails(event.userId);
+      final school = await _schoolRepository.getSchoolDetails();
       if (school != null) {
         emit(SchoolLoaded(school));
       } else {
@@ -41,7 +41,7 @@ class SchoolBloc extends Bloc<SchoolEvent, SchoolState> {
       await _schoolRepository.saveSchoolDetails(event.userId, event.school, event.newImages);
       
       // Fetch latest school profile details from server to reflect DB IDs and Image URLs
-      final latestSchool = await _schoolRepository.getSchoolDetails(event.userId);
+      final latestSchool = await _schoolRepository.getSchoolDetails();
       final finalSchool = latestSchool ?? event.school;
       
       emit(SchoolSaveSuccess(finalSchool));

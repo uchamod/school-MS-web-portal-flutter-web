@@ -45,7 +45,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
       context.read<AuthBloc>().add(
             AuthPasswordResetSubmitted(
               email: _emailController.text.trim(),
-              newPassword: _passwordController.text,
+              newPassword: _passwordController.text.trim(),
             ),
           );
     }
@@ -169,7 +169,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
               SnackBar(
                 content: Text(
                   widget.insideApp 
-                      ? 'Password updated successfully!'
+                      ? state.message
                       : 'Password reset successfully! Please log in with your new credentials.',
                 ),
                 backgroundColor: AppColors.success,

@@ -1,6 +1,8 @@
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../../../core/network/api_client.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -116,12 +118,17 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<void> resetPassword(String email, String newPassword) async {
+  Future<String> resetPassword(String email, String newPassword) async {
     try {
-      await _apiClient.dio.post(
-        '/auth/reset-password',
-        data: {'email': email.trim(), 'password': newPassword},
+      final response = await _apiClient.dio.put(
+        '/authoption/password-reset',
+        data: {'email': email.trim(), 'newPassword': newPassword},
+        options: Options(responseType: ResponseType.plain),
       );
+      if (response.statusCode != 200) {
+        throw Exception(response.data);
+      }
+      return response.data;
     } on DioException catch (e) {
       String errorMessage = 'An error occurred resetting your password.';
       if (e.response != null && e.response?.data != null) {
@@ -132,6 +139,7 @@ class AuthRepositoryImpl implements AuthRepository {
           errorMessage = resData;
         }
       }
+      print(e.toString());
       throw Exception(errorMessage);
     } catch (e) {
       throw Exception(e.toString());
